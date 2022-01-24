@@ -5,104 +5,84 @@ import {
   useState,
   createRef,
   RefObject,
-  useMemo
-} from "react";
-import "./styles.css";
-import { LoremIpsum } from "lorem-ipsum";
-import { useObserver } from "./useObserver";
-
-const lorem = new LoremIpsum({
-  sentencesPerParagraph: {
-    max: 8,
-    min: 4
-  },
-  wordsPerSentence: {
-    max: 16,
-    min: 4
-  }
-});
-
-const loadNewResults = () => {
-  return Array(10)
-    .fill(1)
-    .map((_) => ({
-      title: lorem.generateSentences(1),
-      content: lorem.generateSentences(5)
-    }));
-};
-const PAGE_SIZE = 10;
-
-const Card = (props: { title?: string; content?: string }) => {
-  return (
-    <div className={`card faded ${props.content ? "visible" : "loading"}`}>
-      <h1>{props.title}</h1>
-      <p>{props.content}</p>
-    </div>
-  );
-};
+  useMemo,
+} from "react"
+import "./styles.css"
+import { useObserver } from "./useObserver"
+import { loadNewResults } from "./utils"
 
 type Result = {
-  title: string;
-  content: string;
-};
+  title: string
+  content: string
+}
+const PAGE_SIZE = 10
+
+const Card = (props: { info?: Result }) => {
+  return (
+    <div className={`card faded ${props?.info ? "visible" : "loading"}`}>
+      <h1>{props?.info?.title}</h1>
+      <p>{props?.info?.content}</p>
+    </div>
+  )
+}
+
+const Chunk = <T extends Result>(props: {
+  chunk: Promise<T[]>
+  chunkLength: number
+}) => {
+  const [chunk, setChunk] = useState<T[]>([])
+  useEffect(() => {
+    props.chunk.then((c) => setChunk(c))
+  }, [])
+  return (
+    <>
+      {chunk.length > 0 &&
+        chunk.map((result, i) => <Card key={i} info={result as Result} />)}
+      {!(chunk.length > 0) &&
+        Array(props.chunkLength)
+          .fill(1)
+          .map((result, i) => <Card key={i} info={undefined} />)}
+    </>
+  )
+}
 
 const App = () => {
-  const [pageCount, setPageCount] = useState<number>(2);
-  const [results, setResults] = useState<Result[]>([]);
+  const [pageCount, setPageCount] = useState<number>(1)
+  const [results, setResults] = useState<Promise<Result[]>[]>([])
 
   useEffect(() => {
     const runUpdater = async () => {
-      const newResults = await loadNewResults();
-      // setResults((preRes) => [...preRes, ...newResults]);
-      setResults(Array(pageCount * PAGE_SIZE).fill(1));
-    };
+      const newResults = loadNewResults<Result>(PAGE_SIZE, 5)
+      setResults((preRes) => [...preRes, newResults])
+    }
 
-    runUpdater();
-  }, []);
+    runUpdater()
+  }, [pageCount])
 
-  const { elRefs, elIds, observedCounter } = useObserver(
-    Math.ceil(results.length / PAGE_SIZE) + 1
-  );
+  const { elRefs, elIds, observedCounter } = useObserver(results.length)
 
   useEffect(() => {
-    console.log({ observedCounter });
-    setPageCount((prevCount) => observedCounter + 1);
-  }, [observedCounter]);
-
-  const pages = useMemo(() => {
-    return [...results].reduce((sum: Result[][], current, index) => {
-      let i = Math.floor(index / PAGE_SIZE);
-      if (!sum[i]) {
-        sum.push([]);
-      }
-      sum[i].push(current);
-      return sum;
-    }, []);
-  }, [results]);
+    setPageCount((prevCount) => observedCounter + 1)
+  }, [observedCounter])
 
   return (
     <div className="App">
-      {/* <pre>{JSON.stringify({ elIds, PAGE_SIZE }, null, 2)}</pre> */}
       <pre>{pageCount}</pre>
       <div>
         {elIds.length &&
-          elRefs.length &&
-          pages.map((chunk, i) => (
+          results.map((c, i) => (
             <div
               className="container"
               ref={elRefs[i]}
               key={elIds[i]?.id}
               id={elIds[i]?.id}
             >
-              <div>ContainerId: {elIds[i]?.id}</div>
-              {chunk.map((res, i) => (
-                <Card key={i} title={res.title} content={undefined} />
-              ))}
+              <Chunk chunk={c} chunkLength={PAGE_SIZE} />
             </div>
           ))}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App

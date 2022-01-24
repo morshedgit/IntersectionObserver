@@ -18,7 +18,7 @@ export const useObserver = (count: number) => {
     setEls((els) =>
       Array(count)
         .fill(1)
-        .map((item) => ({ visibile: false, id: Math.random().toString(32) }))
+        .map((_, i) => els[i] || ({ visibile: false, id: Math.random().toString(32) }))
     );
   }, [count]);
 
@@ -26,9 +26,9 @@ export const useObserver = (count: number) => {
     const observer = new IntersectionObserver((enteries, appearOnScroll) => {
       enteries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const el = entry.target;
-          console.log("intersected with container: ", el.id);
 
+          const el = entry.target;
+          console.log(el.id)
           setEls((preEls) => {
             return preEls.map((e) => {
               if (e.id === el.id) {
@@ -40,13 +40,21 @@ export const useObserver = (count: number) => {
               return e;
             });
           });
+
         }
       });
     }, observerOptions);
 
-    elRefs.forEach((ref) => {
+    elRefs.forEach((ref, i) => {
       if (ref.current) {
-        observer.observe(ref.current);
+
+        if (els[i].visibile) {
+          observer.unobserve(ref.current)
+        } else {
+          observer.observe(ref.current)
+        }
+        // observer.observe(ref.current)
+
       }
     });
   }, [elRefs]);
@@ -54,6 +62,11 @@ export const useObserver = (count: number) => {
   const observedCounter = useMemo(() => {
     return els.filter((el) => el.visibile).length;
   }, [els]);
+
+  useEffect(() => {
+  }, [els])
+
+
 
   return { elRefs, elIds: els, observedCounter };
 };
