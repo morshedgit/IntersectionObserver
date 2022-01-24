@@ -9,6 +9,7 @@ import {
 } from "react"
 import "./styles.css"
 import { useObserver } from "./useObserver"
+import { useResults } from "./useResult"
 import { loadNewResults } from "./utils"
 
 type Result = {
@@ -47,27 +48,15 @@ const Chunk = <T extends Result>(props: {
 }
 
 const App = () => {
-  const [pageCount, setPageCount] = useState<number>(1)
-  const [results, setResults] = useState<Promise<Result[]>[]>([])
-
-  useEffect(() => {
-    const runUpdater = async () => {
-      const newResults = loadNewResults<Result>(PAGE_SIZE, 5)
-      setResults((preRes) => [...preRes, newResults])
-    }
-
-    runUpdater()
-  }, [pageCount])
-
-  const { elRefs, elIds, observedCounter } = useObserver(results.length)
-
-  useEffect(() => {
-    setPageCount((prevCount) => observedCounter + 1)
-  }, [observedCounter])
+  const { elRefs, elIds, results } = useResults<Result>({
+    PAGE_SIZE,
+    INITIAL_VALUE: 1,
+    loadNewResults,
+  })
 
   return (
     <div className="App">
-      <pre>{pageCount}</pre>
+      <pre>{results.length}</pre>
       <div>
         {elIds.length &&
           results.map((c, i) => (
